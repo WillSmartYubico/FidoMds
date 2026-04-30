@@ -86,15 +86,22 @@ $Manufacturer_Intermediates = Get-Content .\Manufacturer_intermediates.pem -Raw 
 # generate .Net X509Certificate2 objects for each of the certificates in attestationRootCertificate
 # filter the MDS entries to only FIDO2 authenticators 
 # filter the MDS entries to only FIDO_CERTIFIED authenticators
-$MDSEntries = .\Get-FidoMdsEntries.ps1 -ProtocolFamily fido2 -IncludeStatus FIDO_CERTIFIED -Flatten 
+$MDSEntries = .\Get-FidoMdsEntries.ps1 -ProtocolFamily fido2  -Flatten | Sort-Object authenticatorversion
 
 # For each MDS entry, test the attestationRootCertificates
 $ManufacturerMDSEntries = $MDSEntries | Where-Object {$_.attestationRootCertificateObjects | ./Test-AttestationCertificateChain.ps1 -AttestationRoots $Manufacturer_Roots -AttestationIntermediates $Manufacturer_Intermediates}
 
 # Display a table of authenticator AAGUIDS, descriptions and versions
-$ManufacturerMDSEntries | Select-Object aaguid, description, authenticatorversion | Sort-Object authenticatorVersion | Format-Table -AutoSize
+$ManufacturerMDSEntries | Select-Object aaguid, description, authenticatorversion, @{n='Firmwareversion';e={$_ | ConvertTo-YubicoFirmwareVersion}} | Sort-Object authenticatorVersion | Format-Table -AutoSize
 # Display the total number of AAGUIDs in the list.
 $ManufacturerMDSEntries.Count
 
+#Get the highest version number and report only on that version
+$MaxVersion = ($ManufacturerMDSEntries.authenticatorVersion | Measure-Object -Maximum).Maximum
+Write-Host "Highest Published Firmware Version: $(ConvertTo-YubicoFirmwareVersion $MaxVersion)"
+Write-Host "Certification Status for most recent firmware:" 
+$ManufacturerMDSEntries | Where-Object {$_.authenticatorVersion -eq $MaxVersion} | Select-Object aaguid, description, @{n='certifications'; e={$_.status -join ','}}
+
+
 #Export a CSV with the list of Entries
-$ManufacturerMDSEntries | Select-Object aaguid, description, authenticatorversion | Export-Csv -Path "AAGUIDs.csv" -Force
+$ManufacturerMDSEntries | Select-Object aaguid, description, authenticatorversion, @{n='Firmwareversion';e={$_ | ConvertTo-YubicoFirmwareVersion}}, @{n='certifications'; e={$_.status -join ','}} | Export-Csv -Path "AAGUIDs.csv" -Force
