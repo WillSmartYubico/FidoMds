@@ -21,6 +21,57 @@ function Split-PEMCertificates{
         
 }
 
+function ConvertTo-YubicoFirmwareVersion {
+    [CmdletBinding()]
+    param ( 
+        [Parameter(ValueFromPipelineByPropertyName=$true)]
+        $authenticatorversion
+    )
+    
+    begin {
+
+    }
+    
+    process {
+        if ($authenticatorversion -gt 50200 ) {
+            $major = ($authenticatorversion -shr 16 ) % 256
+            $minor = ($authenticatorversion -shr 8 ) % 256
+            $patch = ($authenticatorversion ) % 256   
+        }
+        else {
+            $major = [math]::Floor(($authenticatorversion / 10000))
+            $minor = [math]::Floor(($authenticatorversion / 100)) % 100
+            $patch = [math]::Floor(($authenticatorversion )) % 100
+        }
+        "$major.$minor.$patch"
+
+    }
+    
+    end {
+        
+    }
+}
+
+function ConvertFrom-YubicoFirmwareVersion {
+    [CmdletBinding()]
+    param ( 
+        [string] $firmwareversion
+    )
+    
+    begin {
+
+    }
+    
+    process {
+        $firmwareversion -split '\.'
+        ($major -shl 16) + ($minor -shl 8) + ($patch)
+    }
+    
+    end {
+        
+    }
+}
+
 # Get Root and Intermediate Certificates from the web
 # Ideally these lists of certificates should be pre-downloaded and independently validated, but that is out of scope for this example.
 Invoke-WebRequest 'https://developers.yubico.com/PKI/yubico-ca-certs.txt' -OutFile Manufacturer_roots.txt
