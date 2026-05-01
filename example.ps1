@@ -100,7 +100,13 @@ $ManufacturerMDSEntries.Count
 $MaxVersion = ($ManufacturerMDSEntries.authenticatorVersion | Measure-Object -Maximum).Maximum
 Write-Host "Highest Published Firmware Version: $(ConvertTo-YubicoFirmwareVersion $MaxVersion)"
 Write-Host "Certification Status for most recent firmware:" 
-$ManufacturerMDSEntries | Where-Object {$_.authenticatorVersion -eq $MaxVersion} | Select-Object aaguid, description, @{n='certifications'; e={$_.status -join ','}}
+$ManufacturerMDSEntries | Where-Object {$_.authenticatorVersion -eq $MaxVersion} | Select-Object aaguid, description, @{n='certifications'; e={$_.status -join ','}} | Format-Table -AutoSize
+
+#Get the list of supported security keys in Microsoft Entra
+$MSKBUrl = 'https://learn.microsoft.com/en-us/entra/identity/authentication/concept-fido2-hardware-vendor'      
+$MSKB = Invoke-WebRequest $MSKBUrl
+Write-Host "Keys not listed as supported by Entra:" 
+$ManufacturerMDSEntries | Where-Object {$MSKB -notmatch $_.aaguid} | select-object aaguid, description, authenticatorVersion, @{n='Firmwareversion';e={$_ | ConvertTo-YubicoFirmwareVersion}}  | Format-Table -AutoSize
 
 
 #Export a CSV with the list of Entries
